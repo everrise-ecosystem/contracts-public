@@ -61,10 +61,7 @@ contract Ownable is Context {
     }
     
     function transferOwnership(address newOwner) external virtual onlyOwner {
-        require(
-            newOwner != address(0),
-            "Ownable: new owner is the zero address"
-        );
+        require(newOwner != address(0), "Ownable: new owner is the zero address");
 
         emit OwnershipTransferred(_owner, newOwner);
         _owner = newOwner;
@@ -107,7 +104,7 @@ contract MyContractOwn is Ownable {
     // Function to release ETH trapped in wrapper, can be released when ownership returned
     function releaseTrappedETH(address payable toAddress) external onlyOwner {
         require(toAddress != address(0), "toAddress can not be a zero address");
-        
+
         toAddress.transfer(address(this).balance);
     }
 
