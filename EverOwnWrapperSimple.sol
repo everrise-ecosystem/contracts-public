@@ -80,7 +80,7 @@ contract MyContractOwn is Ownable {
 
     IMyContract public token;
 
-    constructor (address _token) EverOwnProxy(_msgSender()) {
+    constructor (address _token) {
         token = IMyContract(payable(_token));
     }
 
