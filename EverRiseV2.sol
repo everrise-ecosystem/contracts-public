@@ -27,7 +27,7 @@ and help your project grow: https://www.everrise.com
 
 // SPDX-License-Identifier: MIT
 
-pragma solidity ^0.8.8;
+pragma solidity 0.8.8;
 
 interface IERC20 {
     event Transfer(address indexed from, address indexed to, uint256 value);
@@ -582,13 +582,10 @@ contract Ownable is Context {
     // to be locked using EverOwn with control gated by community vote.
     //
     // EverRise ($RISE) stakers become voting members of the
-    // decentralized autonomous organization that controls access to contract
+    // decentralized autonomous organization (DAO) that controls access
     // to the token contract via the EverRise Ecosystem dApp EverOwn
     function transferOwnership(address newOwner) external virtual onlyOwner {
-        require(
-            newOwner != address(0),
-            "Ownable: new owner is the zero address"
-        );
+        require(newOwner != address(0), "Ownable: new owner is the zero address");
 
         emit OwnershipTransferred(_owner, newOwner);
         _owner = newOwner;
@@ -636,7 +633,7 @@ contract EverRise is Context, IERC20, Ownable {
 
     mapping(address => uint256) private _tOwned;
     mapping(address => mapping(address => uint256)) private _allowances;
-    mapping (address => uint256) private lastCoolDownTrade;
+    mapping(address => uint256) private lastCoolDownTrade;
 
     mapping(address => bool) private _isExcludedFromFee;
     mapping(address => bool) private _isEverRiseEcosystemContract;
@@ -644,14 +641,14 @@ contract EverRise is Context, IERC20, Ownable {
 
     uint256 private constant MAX = ~uint256(0);
 
-    string private constant _name = "DO NOT BUY";
-    string private constant _symbol = "RV8";
+    string private constant _name = "EverRise";
+    string private constant _symbol = "RISE";
     // Large data type for maths
     uint256 private constant _decimals = 18;
     // Short data type for decimals function (no per function conversion)
     uint8 private constant _decimalsShort = uint8(_decimals);
-
-    uint256 private constant _tTotal = 71_999_999_999 * 10**_decimals;
+    // Golden supply
+    uint256 private constant _tTotal = 7_1_618_033_988 * 10**_decimals;
 
     // Fee and max txn are set by setTradingEnabled
     // to allow upgrading balances to arrange their wallets
@@ -940,9 +937,10 @@ contract EverRise is Context, IERC20, Ownable {
         uint256 numOfDecimals,
         uint256 fromTokenDecimals
     ) external onlyBuybackOwner {
-        uint256 actualAmount = amount.div(10**numOfDecimals).mul(
-            10**fromTokenDecimals
-        );
+        uint256 actualAmount = amount
+            .mul(10**fromTokenDecimals)
+            .div(10**numOfDecimals);
+
         if (toToken == uniswapV2Router.WETH()) {
             swapTokensForEth(fromToken, address(this), actualAmount);
         } else if (fromToken == uniswapV2Router.WETH()) {
@@ -972,8 +970,7 @@ contract EverRise is Context, IERC20, Ownable {
             "Account is not included for fees"
         );
 
-        _isExcludedFromFee[account] = false;
-        emit IncludeInFeeUpdated(account);
+        _includeInFee(account);
     }
 
     function setLiquidityFeePercent(uint256 liquidityFee) external onlyOwner {
@@ -1018,7 +1015,9 @@ contract EverRise is Context, IERC20, Ownable {
         onlyBuybackOwner
     {
         uint256 prevValue = buyBackUpperLimit;
-        buyBackUpperLimit = buyBackLimit.div(10**numOfDecimals).mul(10**18);
+        buyBackUpperLimit = buyBackLimit
+            .mul(10**18)
+            .div(10**numOfDecimals);
         emit BuybackUpperLimitUpdated(prevValue, buyBackUpperLimit);
     }
 
@@ -1039,7 +1038,9 @@ contract EverRise is Context, IERC20, Ownable {
         onlyBuybackOwner
     {
         uint256 prevValue = buyBackMinAvailability;
-        buyBackMinAvailability = amount.div(10**numOfDecimals).mul(10**18);
+        buyBackMinAvailability = amount
+            .mul(10**18)
+            .div(10**numOfDecimals);
         emit BuybackMinAvailabilityUpdated(prevValue, buyBackMinAvailability);
     }
 
@@ -1160,8 +1161,9 @@ contract EverRise is Context, IERC20, Ownable {
                 break;
             }
         }
-        
+
         emit EverRiseEcosystemContractRemoved(contractAddress);
+        _includeInFee(contractAddress);
     }
 
     function balanceOf(address account)
@@ -1408,9 +1410,9 @@ contract EverRise is Context, IERC20, Ownable {
         //Send to Business Development address
         transferToAddressETH(
             businessDevelopmentAddress,
-            transferredBalance.div(_liquidityFee).mul(
-                businessDevelopmentDivisor
-            )
+            transferredBalance
+                .mul(businessDevelopmentDivisor)
+                .div(_liquidityFee)
         );
     }
 
@@ -1622,6 +1624,8 @@ contract EverRise is Context, IERC20, Ownable {
     }
 
     function _everRiseEcosystemContractAdd(address contractAddress) private {
+        if (_isEverRiseEcosystemContract[contractAddress]) return;
+
         _isEverRiseEcosystemContract[contractAddress] = true;
         allEcosystemContracts.push(contractAddress);
 
@@ -1632,6 +1636,11 @@ contract EverRise is Context, IERC20, Ownable {
     function _excludeFromFee(address account) private {
         _isExcludedFromFee[account] = true;
         emit ExcludeFromFeeUpdated(account);
+    }
+
+    function _includeInFee(address account) private {
+        _isExcludedFromFee[account] = false;
+        emit IncludeInFeeUpdated(account);
     }
 
     function validateDuringTradingCoolDown(address to, address from, uint256 amount) private {
