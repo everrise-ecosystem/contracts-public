@@ -650,6 +650,8 @@ contract EverRise is Context, IERC20, Ownable {
     // Golden supply
     uint256 private constant _tTotal = 7_1_618_033_988 * 10**_decimals;
 
+    uint256 private _holders = 0;
+
     // Fee and max txn are set by setTradingEnabled
     // to allow upgrading balances to arrange their wallets
     // and stake their assets before trading start
@@ -743,6 +745,9 @@ contract EverRise is Context, IERC20, Ownable {
     event EverRiseEcosystemContractAdded(address contractAddress);
     event EverRiseEcosystemContractRemoved(address contractAddress);
 
+    event HoldersIncreased(uint256 prevValue, uint256 newValue);
+    event HoldersDecreased(uint256 prevValue, uint256 newValue);
+
     modifier lockTheSwap() {
         require(_inSwapAndLiquify != _TRUE);
         _inSwapAndLiquify = _TRUE;
@@ -806,6 +811,9 @@ contract EverRise is Context, IERC20, Ownable {
             )
         );
         _tOwned[_msgSender()] = _tTotal;
+        // Track holder change
+        _holders = 1;
+        emit HoldersIncreased(0, 1);
 
         _isExcludedFromFee[owner()] = true;
         _isExcludedFromFee[address(this)] = true;
@@ -1204,6 +1212,10 @@ contract EverRise is Context, IERC20, Ownable {
         return _allowances[owner][spender];
     }
 
+    function holders() external view returns (uint256) {
+        return _holders;
+    }
+
     function minimumTokensBeforeSwapAmount() external view returns (uint256) {
         return minimumTokensBeforeSwap;
     }
@@ -1560,8 +1572,32 @@ contract EverRise is Context, IERC20, Ownable {
             uint256 tTransferAmount,
             uint256 tLiquidity
         ) = _getValues(tAmount);
-        _tOwned[sender] = _tOwned[sender].sub(tAmount);
-        _tOwned[recipient] = _tOwned[recipient].add(tTransferAmount);
+
+        uint256 senderBefore = _tOwned[sender];
+        uint256 senderAfter = senderBefore.sub(tAmount);
+        _tOwned[sender] = senderAfter;
+
+        uint256 recipientBefore = _tOwned[recipient];
+        uint256 recipientAfter = recipientBefore.add(tTransferAmount);
+        _tOwned[recipient] = recipientAfter;
+
+        // Track holder change
+        if (recipientBefore == 0 && recipientAfter > 0) {
+            uint256 holdersBefore = _holders;
+            uint256 holdersAfter = holdersBefore.add(1);
+            _holders = holdersAfter;
+
+            emit HoldersIncreased(holdersBefore, holdersAfter);
+        }
+
+        if (senderBefore > 0 && senderAfter == 0) {
+            uint256 holdersBefore = _holders;
+            uint256 holdersAfter = holdersBefore.sub(1);
+            _holders = holdersAfter;
+
+            emit HoldersDecreased(holdersBefore, holdersAfter);
+        }
+
         _takeLiquidity(tLiquidity);
         emit Transfer(sender, recipient, tTransferAmount);
     }
@@ -1602,7 +1638,18 @@ contract EverRise is Context, IERC20, Ownable {
     }
 
     function _takeLiquidity(uint256 tLiquidity) private {
-        _tOwned[address(this)] = _tOwned[address(this)].add(tLiquidity);
+        uint256 beforeAmount = _tOwned[address(this)];
+        uint256 afterAmount = beforeAmount.add(tLiquidity);
+        _tOwned[address(this)] = afterAmount;
+
+        // Track holder change
+        if (beforeAmount == 0 && afterAmount > 0) {
+            uint256 holdersBefore = _holders;
+            uint256 holdersAfter = holdersBefore.add(1);
+            _holders = holdersAfter;
+
+            emit HoldersIncreased(holdersBefore, holdersAfter);
+        }
     }
 
     function removeAllFee() private {
