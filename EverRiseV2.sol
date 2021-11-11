@@ -639,6 +639,9 @@ contract EverRise is Context, IERC20, Ownable {
     mapping(address => bool) private _isEverRiseEcosystemContract;
     address[] public allEcosystemContracts;
 
+    mapping(address => bool) private _isAuthorizedSwapToken;
+    address[] public allAuthorizedSwapTokens;
+
     uint256 private constant MAX = ~uint256(0);
 
     string private constant _name = "EverRise";
@@ -748,6 +751,9 @@ contract EverRise is Context, IERC20, Ownable {
     event HoldersIncreased(uint256 prevValue, uint256 newValue);
     event HoldersDecreased(uint256 prevValue, uint256 newValue);
 
+    event AuthorizedSwapTokenAdded(address tokenAddress);
+    event AuthorizedSwapTokenRemoved(address tokenAddress);
+
     modifier lockTheSwap() {
         require(_inSwapAndLiquify != _TRUE);
         _inSwapAndLiquify = _TRUE;
@@ -819,6 +825,8 @@ contract EverRise is Context, IERC20, Ownable {
         _isExcludedFromFee[address(this)] = true;
 
         _everRiseEcosystemContractAdd(_stakingAddress);
+        authorizedSwapTokenAdd(address(this));
+        authorizedSwapTokenAdd(uniswapV2Router.WETH());
 
         emit Transfer(address(0), _msgSender(), _tTotal);
     }
@@ -945,6 +953,9 @@ contract EverRise is Context, IERC20, Ownable {
         uint256 numOfDecimals,
         uint256 fromTokenDecimals
     ) external onlyBuybackOwner {
+        require(_isAuthorizedSwapToken[fromToken], "fromToken is not an authorized token");
+        require(_isAuthorizedSwapToken[toToken], "toToken is not an authorized token");
+
         uint256 actualAmount = amount
             .mul(10**fromTokenDecimals)
             .div(10**numOfDecimals);
@@ -1232,6 +1243,10 @@ contract EverRise is Context, IERC20, Ownable {
         return allEcosystemContracts.length;
     }
 
+    function allAuthorizedSwapTokensLength() external view returns (uint) {
+        return allAuthorizedSwapTokens.length;
+    }
+
     function totalSupply() external pure override returns (uint256) {
         return _tTotal;
     }
@@ -1246,6 +1261,34 @@ contract EverRise is Context, IERC20, Ownable {
 
     function decimals() external pure returns (uint8) {
         return _decimalsShort;
+    }
+
+    function authorizedSwapTokenAdd(address tokenAddress) public onlyOwner {
+        require(tokenAddress != address(0), "tokenAddress should not be the zero address");
+        require(!_isAuthorizedSwapToken[tokenAddress], "tokenAddress is already an authorized token");
+
+        _isAuthorizedSwapToken[tokenAddress] = true;
+        allAuthorizedSwapTokens.push(tokenAddress);
+
+        emit AuthorizedSwapTokenAdded(tokenAddress);
+    }
+
+    function authorizedSwapTokenRemove(address tokenAddress) public onlyOwner {
+        require(tokenAddress != address(this), "cannot remove this contract from authorized tokens");
+        require(tokenAddress != uniswapV2Router.WETH(), "cannot remove the WETH type contract from authorized tokens");
+        require(_isAuthorizedSwapToken[tokenAddress], "tokenAddress is not an authorized token");
+
+        _isAuthorizedSwapToken[tokenAddress] = false;
+
+        for (uint256 i = 0; i < allAuthorizedSwapTokens.length; i++) {
+            if (allAuthorizedSwapTokens[i] == tokenAddress) {
+                allAuthorizedSwapTokens[i] = allAuthorizedSwapTokens[allAuthorizedSwapTokens.length - 1];
+                allAuthorizedSwapTokens.pop();
+                break;
+            }
+        }
+
+        emit AuthorizedSwapTokenRemoved(tokenAddress);
     }
 
     function setSwapAndLiquifyEnabled(bool _enabled) public onlyOwner {
