@@ -655,8 +655,8 @@ contract EverRise is Context, IERC20, Ownable {
     // Fee and max txn are set by setTradingEnabled
     // to allow upgrading balances to arrange their wallets
     // and stake their assets before trading start
-    uint256 public _liquidityFee = 0;
-    uint256 private _previousLiquidityFee = _liquidityFee;
+    uint256 public liquidityFee = 0;
+    uint256 private _previousLiquidityFee = liquidityFee;
     uint256 private _maxTxAmount = _tTotal;
     
     uint256 private constant _tradeStartLiquidityFee = 6;
@@ -981,12 +981,12 @@ contract EverRise is Context, IERC20, Ownable {
         _includeInFee(account);
     }
 
-    function setLiquidityFeePercent(uint256 liquidityFee) external onlyOwner {
-        require(liquidityFee <= 10, "Liquidity rate should be less than 10%");
+    function setLiquidityFeePercent(uint256 liquidityFeeRate) external onlyOwner {
+        require(liquidityFeeRate <= 10, "liquidityFeeRate should be less than 10%");
 
-        uint256 prevValue = _liquidityFee;
-        _liquidityFee = liquidityFee;
-        emit LiquidityFeeUpdated(prevValue, _liquidityFee);
+        uint256 prevValue = liquidityFee;
+        liquidityFee = liquidityFeeRate;
+        emit LiquidityFeeUpdated(prevValue, liquidityFee);
     }
 
     function setMaxTxAmount(uint256 txAmount) external onlyOwner {
@@ -997,7 +997,7 @@ contract EverRise is Context, IERC20, Ownable {
 
     function setBusinessDevelopmentDivisor(uint256 divisor) external onlyOwner {
         require(
-            divisor <= _liquidityFee,
+            divisor <= liquidityFee,
             "Business Development divisor should be less than liquidity fee"
         );
 
@@ -1064,8 +1064,8 @@ contract EverRise is Context, IERC20, Ownable {
         // Can only be called once
         require(tradingStart == MAX && tradingStartCooldown == MAX, "Trading has already started");
         // Set initial values
-        _liquidityFee = _tradeStartLiquidityFee;
-        _previousLiquidityFee = _liquidityFee;
+        liquidityFee = _tradeStartLiquidityFee;
+        _previousLiquidityFee = liquidityFee;
         _maxTxAmount = _tradeStartMaxTxAmount;
 
         setBuyBackEnabled(true);
@@ -1424,7 +1424,7 @@ contract EverRise is Context, IERC20, Ownable {
             businessDevelopmentAddress,
             transferredBalance
                 .mul(businessDevelopmentDivisor)
-                .div(_liquidityFee)
+                .div(liquidityFee)
         );
     }
 
@@ -1653,15 +1653,15 @@ contract EverRise is Context, IERC20, Ownable {
     }
 
     function removeAllFee() private {
-        if (_liquidityFee == 0) return;
+        if (liquidityFee == 0) return;
 
-        _previousLiquidityFee = _liquidityFee;
+        _previousLiquidityFee = liquidityFee;
 
-        _liquidityFee = 0;
+        liquidityFee = 0;
     }
 
     function restoreAllFee() private {
-        _liquidityFee = _previousLiquidityFee;
+        liquidityFee = _previousLiquidityFee;
     }
 
     function transferToAddressETH(address payable recipient, uint256 amount)
@@ -1736,7 +1736,7 @@ contract EverRise is Context, IERC20, Ownable {
         view
         returns (uint256)
     {
-        return _amount.mul(_liquidityFee).div(10**2);
+        return _amount.mul(liquidityFee).div(10**2);
     }
 
     function _balanceOf(address account) private view returns (uint256) {
