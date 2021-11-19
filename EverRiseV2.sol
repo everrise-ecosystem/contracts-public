@@ -694,6 +694,7 @@ contract EverRise is Context, IERC20, Ownable {
     // Infrequently set booleans
     bool public swapAndLiquifyEnabled = false;
     bool public buyBackEnabled = false;
+    bool public liquidityLocked = false;
 
     IUniswapV2Router02 public uniswapV2Router;
     address public uniswapV2Pair;
@@ -753,6 +754,9 @@ contract EverRise is Context, IERC20, Ownable {
 
     event AuthorizedSwapTokenAdded(address tokenAddress);
     event AuthorizedSwapTokenRemoved(address tokenAddress);
+
+    event LiquidityLocked();
+    event LiquidityUnlocked();
 
     modifier lockTheSwap() {
         require(_inSwapAndLiquify != _TRUE);
@@ -829,6 +833,7 @@ contract EverRise is Context, IERC20, Ownable {
         authorizedSwapTokenAdd(uniswapV2Router.WETH());
 
         emit Transfer(address(0), _msgSender(), _tTotal);
+        lockLiquidity();
     }
 
     // Function to receive ETH when msg.data is be empty
@@ -972,6 +977,16 @@ contract EverRise is Context, IERC20, Ownable {
                 actualAmount
             );
         }
+    }
+
+    function lockLiquidity() public onlyOwner {
+        liquidityLocked = true;
+        emit LiquidityLocked();
+    }
+
+    function unlockLiquidity() external onlyOwner {
+        liquidityLocked = false;
+        emit LiquidityUnlocked();
     }
 
     function excludeFromFee(address account) external onlyOwner {
@@ -1812,6 +1827,11 @@ contract EverRise is Context, IERC20, Ownable {
                 balance1 > _lastTransfer.balance1) {
                 // Both pair balances have increased, this is a Liquidty Add
                 require(false, "Liquidity can be added by the owner only");
+            } else if (balance0 < _lastTransfer.balance0 &&
+                balance1 < _lastTransfer.balance1)
+            {
+                // Both pair balances have decreased, this is a Liquidty Remove
+                require(!liquidityLocked, "Liquidity cannot be removed while locked");
             }
         }
     }
