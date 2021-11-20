@@ -674,6 +674,10 @@ contract EverRise is Context, IERC20, Ownable {
 
     uint256 private buyVolume = 0;
     uint256 private sellVolume = 0;
+    uint256 public totalBuyVolume = 0;
+    uint256 public totalSellVolume = 0;
+    uint256 public totalVolume = 0;
+    uint256 public totalRewards = 0;
     uint256 private nextBuybackAmount = 0;
     uint256 private buyBackTriggerVolume = 100 * 10**6 * 10**_decimals;
 
@@ -1345,6 +1349,7 @@ contract EverRise is Context, IERC20, Ownable {
         require(from != address(0), "ERC20: transfer from the zero address");
         require(to != address(0), "ERC20: transfer to the zero address");
         require(amount > 0, "Transfer amount must be greater than zero");
+        require(from != to, "Transfer to and from addresses the same");
         require(!inTokenCheck(), "Invalid reentrancy from token0/token1 balanceOf check");
 
         address _owner = owner();
@@ -1399,17 +1404,26 @@ contract EverRise is Context, IERC20, Ownable {
                 }
             }
         }
-        // Compute Sell Volume and set the next buyback amount
-        if (to == _pair) {
-            sellVolume = sellVolume.add(amount);
-            if (amount > buyBackTriggerTokenLimit) {
-                uint256 balance = address(this).balance;
-                if (balance > buyBackUpperLimit) balance = buyBackUpperLimit;
-                nextBuybackAmount = nextBuybackAmount.add(balance.div(100));
+
+        if (_isTradingEnabled) {
+            // Compute Sell Volume and set the next buyback amount
+            if (to == _pair) {
+                sellVolume = sellVolume.add(amount);
+                totalSellVolume = totalSellVolume.add(amount);
+                if (amount > buyBackTriggerTokenLimit) {
+                    uint256 balance = address(this).balance;
+                    if (balance > buyBackUpperLimit) balance = buyBackUpperLimit;
+                    nextBuybackAmount = nextBuybackAmount.add(balance.div(100));
+                }
             }
+            // Compute Buy Volume
+            else if (from == _pair) {
+                buyVolume = buyVolume.add(amount);
+                totalBuyVolume = totalBuyVolume.add(amount);
+            }
+            
+            totalVolume = totalVolume.add(amount);
         }
-        // Compute Buy Volume
-        if (from == _pair) buyVolume = buyVolume.add(amount);
 
         bool takeFee = true;
 
@@ -1602,6 +1616,7 @@ contract EverRise is Context, IERC20, Ownable {
 
     function distributeStakingRewards(uint256 amount) private {
         if (amount > 0) {
+            totalRewards = totalRewards.add(amount);
             stakeToken.createRewards(address(this), amount);
             stakeToken.deliver(amount);
 
