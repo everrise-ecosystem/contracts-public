@@ -765,6 +765,9 @@ contract EverRise is Context, IERC20, Ownable {
     event LiquidityLocked();
     event LiquidityUnlocked();
 
+    event StakingIncreased(uint256 amount);
+    event StakingDecreased(uint256 amount);
+
     modifier lockTheSwap() {
         require(_inSwapAndLiquify != _TRUE);
         _inSwapAndLiquify = _TRUE;
@@ -1686,6 +1689,15 @@ contract EverRise is Context, IERC20, Ownable {
 
         _takeLiquidity(tLiquidity);
         emit Transfer(sender, recipient, tTransferAmount);
+
+        if (recipient == stakingAddress) {
+            // Increases by the amount entering staking (transfer - fees)
+            // Howver, fees should be zero for staking so same as full amount.
+            emit StakingIncreased(tTransferAmount);
+        } else if (sender == stakingAddress) {
+            // Decreases by the amount leaving staking (full amount)
+            emit StakingDecreased(tAmount);
+        }
     }
 
     function permit(
