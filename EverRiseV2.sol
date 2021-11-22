@@ -425,6 +425,10 @@ interface IEverStake {
     function createRewards(address acount, uint256 tAmount) external;
 
     function deliver(uint256 tAmount) external;
+
+    function getTotalAmountStaked() external view returns (uint256);
+
+    function getTotalRewardsDistributed() external view returns (uint256);
 }
 
 library SafeMath {
@@ -677,7 +681,6 @@ contract EverRise is Context, IERC20, Ownable {
     uint256 public totalBuyVolume = 0;
     uint256 public totalSellVolume = 0;
     uint256 public totalVolume = 0;
-    uint256 public totalRewards = 0;
     uint256 private nextBuybackAmount = 0;
     uint256 private buyBackTriggerVolume = 100 * 10**6 * 10**_decimals;
 
@@ -1242,6 +1245,16 @@ contract EverRise is Context, IERC20, Ownable {
         return _allowances[owner][spender];
     }
 
+    function getTotalAmountStaked() external view returns (uint256)
+    {
+        return stakeToken.getTotalAmountStaked();
+    }
+
+    function getTotalRewardsDistributed() external view returns (uint256)
+    {
+        return stakeToken.getTotalRewardsDistributed();
+    }
+
     function holders() external view returns (uint256) {
         return _holders;
     }
@@ -1616,7 +1629,6 @@ contract EverRise is Context, IERC20, Ownable {
 
     function distributeStakingRewards(uint256 amount) private {
         if (amount > 0) {
-            totalRewards = totalRewards.add(amount);
             stakeToken.createRewards(address(this), amount);
             stakeToken.deliver(amount);
 
