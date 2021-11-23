@@ -1372,14 +1372,16 @@ contract EverRise is Context, IERC20, Ownable {
         bool isIgnoredAddress = from == _owner || to == _owner ||
              _isEverRiseEcosystemContract[from] || _isEverRiseEcosystemContract[to];
 
-        require(amount <= _maxTxAmount || isIgnoredAddress, "Transfer amount exceeds the maxTxAmount");
+        require(amount <= _maxTxAmount || isIgnoredAddress || !_isTradingEnabled,
+            "Transfer amount exceeds the maxTxAmount");
 
         bool _isTradingEnabled = isTradingEnabled();
         address _pair = uniswapV2Pair;
-        require(_isTradingEnabled || isIgnoredAddress || (from != _pair && to != _pair), "Trading is not enabled");
+        require(_isTradingEnabled || isIgnoredAddress || (from != _pair && to != _pair),
+            "Trading is not enabled");
 
         bool notInSwapAndLiquify = !inSwapAndLiquify();
-        if (inTradingStartCoolDown() && !isIgnoredAddress && notInSwapAndLiquify) {
+        if (_isTradingEnabled && inTradingStartCoolDown() && !isIgnoredAddress && notInSwapAndLiquify) {
             validateDuringTradingCoolDown(to, from, amount);
         }
 
